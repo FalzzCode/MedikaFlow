@@ -91,7 +91,7 @@ require_once __DIR__ . '/../includes/header.php';
     <article class="profile-current-card">
         <div class="profile-card-kicker"><span class="profile-live-dot <?= $is_profile_active ? 'is-active' : 'is-inactive' ?>" aria-hidden="true"></span> <?= $is_profile_active ? 'Akun aktif' : 'Akun nonaktif' ?></div>
         <div class="profile-current-top">
-            <div class="profile-avatar-large"><?= e(initials($user['nama_lengkap'])) ?></div>
+            <div class="profile-avatar-large"><?= user_avatar_content($user) ?></div>
             <div class="profile-current-copy">
                 <span><?= e($user['username']) ?></span>
                 <h2><?= e($user['nama_lengkap']) ?></h2>

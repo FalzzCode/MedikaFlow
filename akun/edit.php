@@ -17,6 +17,7 @@ $data = $account;
 $errors = array();
 $transaction_started = false;
 $account_lock = '';
+$new_profile_photo = null;
 
 if (is_post()) {
     verify_csrf();
@@ -29,6 +30,12 @@ if (is_post()) {
     $password = (string) ($_POST['password'] ?? '');
     $password_confirmation = (string) ($_POST['password_confirmation'] ?? '');
     $errors = validate_account_form($data, $password, $password_confirmation, $id, false);
+    $remove_profile_photo = !empty($_POST['remove_profile_photo']);
+    $has_profile_photo_upload = isset($_FILES['profile_photo']['error'])
+        && (int) $_FILES['profile_photo']['error'] !== UPLOAD_ERR_NO_FILE;
+    if ($remove_profile_photo && $has_profile_photo_upload) {
+        $errors[] = 'Pilih foto baru atau hapus foto saat ini, bukan keduanya sekaligus.';
+    }
 
     $current = current_user();
     if ($id === (int) $current['id'] && $data['status'] !== 'Aktif') {
@@ -41,6 +48,16 @@ if (is_post()) {
         $active_admins = (int) db_value("SELECT COUNT(*) FROM users WHERE role = 'Admin' AND status = 'Aktif'", array(), 0);
         if ($active_admins <= 1) {
             $errors[] = 'Sistem wajib memiliki minimal satu Admin aktif.';
+        }
+    }
+
+    if (empty($errors)) {
+        try {
+            if ($has_profile_photo_upload) {
+                $new_profile_photo = profile_photo_upload();
+            }
+        } catch (Throwable $exception) {
+            $errors[] = $exception->getMessage();
         }
     }
 
@@ -63,6 +80,12 @@ if (is_post()) {
             }
             $params = array($data['nama_lengkap'], $data['username'], $data['email'], $data['role'], $data['doctor_id'], $data['status']);
             $sql = 'UPDATE users SET nama_lengkap = ?, username = ?, email = ?, role = ?, doctor_id = ?, status = ?';
+            if ($new_profile_photo !== null) {
+                $sql .= ', profile_photo = ?';
+                $params[] = $new_profile_photo;
+            } elseif ($remove_profile_photo) {
+                $sql .= ', profile_photo = NULL';
+            }
             if ($password !== '') {
                 $sql .= ', password_hash = ?';
                 $params[] = password_hash($password, PASSWORD_DEFAULT);
@@ -75,11 +98,18 @@ if (is_post()) {
             release_database_lock($account_lock);
             $account_lock = '';
             current_user(true);
+            if (($new_profile_photo !== null || $remove_profile_photo) && !empty($account['profile_photo'])) {
+                profile_photo_delete($account['profile_photo']);
+            }
             flash('success', 'Akun berhasil diperbarui.');
             redirect_to('akun/index.php');
         } catch (Throwable $exception) {
             if ($transaction_started) {
                 rollback_transaction();
+            }
+            if ($new_profile_photo !== null) {
+                profile_photo_delete($new_profile_photo);
+                $new_profile_photo = null;
             }
             $errors[] = 'Perubahan akun belum tersimpan. Periksa data unik dan hubungan dokter.';
         } finally {

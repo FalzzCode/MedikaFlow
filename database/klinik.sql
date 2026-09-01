@@ -84,6 +84,7 @@ CREATE TABLE users (
     nama_lengkap VARCHAR(120) NOT NULL,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(120) NOT NULL UNIQUE,
+    profile_photo VARCHAR(255) DEFAULT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('Admin', 'Dokter', 'Petugas') NOT NULL,
     doctor_id INT UNSIGNED DEFAULT NULL,

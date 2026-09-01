@@ -345,6 +345,7 @@ function ensure_application_schema()
         nama_lengkap VARCHAR(120) NOT NULL,
         username VARCHAR(50) NOT NULL UNIQUE,
         email VARCHAR(120) NOT NULL UNIQUE,
+        profile_photo VARCHAR(255) DEFAULT NULL,
         password_hash VARCHAR(255) NOT NULL,
         role ENUM('Admin', 'Dokter', 'Petugas') NOT NULL,
         doctor_id INT UNSIGNED DEFAULT NULL,
@@ -360,6 +361,16 @@ function ensure_application_schema()
 
     if (!mysqli_query($koneksi, $users_sql)) {
         throw new RuntimeException('Tabel akun belum dapat dibuat: ' . mysqli_error($koneksi));
+    }
+
+    $user_columns = array(
+        'profile_photo' => 'ALTER TABLE users ADD COLUMN profile_photo VARCHAR(255) DEFAULT NULL AFTER email',
+    );
+
+    foreach ($user_columns as $column => $sql) {
+        if (!database_column_exists('users', $column) && !mysqli_query($koneksi, $sql)) {
+            throw new RuntimeException('Kolom profil akun belum dapat dibuat: ' . mysqli_error($koneksi));
+        }
     }
 
     $login_attempts_sql = "CREATE TABLE IF NOT EXISTS auth_login_attempts (
@@ -684,7 +695,7 @@ function current_user($refresh = false)
     }
 
     ensure_application_schema();
-    $user = db_select_one("SELECT u.id, u.nama_lengkap, u.username, u.email, u.role, u.doctor_id,
+    $user = db_select_one("SELECT u.id, u.nama_lengkap, u.username, u.email, u.profile_photo, u.role, u.doctor_id,
             u.status, u.last_login_at, u.created_at,
             d.kode_dokter, d.nama_dokter, d.jadwal_hari, d.jam_mulai, d.jam_selesai,
             d.status AS status_dokter, d.archived_at AS archived_at_dokter, s.nama AS spesialisasi,
@@ -981,6 +992,149 @@ function initials($name)
     }
 
     return $result;
+}
+
+function profile_photo_storage_directory()
+{
+    $directory = __DIR__ . '/../storage/profile-photos';
+
+    if (!is_dir($directory) && !@mkdir($directory, 0775, true) && !is_dir($directory)) {
+        throw new RuntimeException('Folder penyimpanan foto profil belum dapat dibuat.');
+    }
+
+    return $directory;
+}
+
+function profile_photo_filename($filename)
+{
+    $filename = strtolower(trim((string) $filename));
+
+    if ($filename === '' || !preg_match('/\A[a-f0-9]{48}\.(jpg|png|webp)\z/', $filename)) {
+        return null;
+    }
+
+    return $filename;
+}
+
+function profile_photo_file_path($filename)
+{
+    $filename = profile_photo_filename($filename);
+    if ($filename === null) {
+        return null;
+    }
+
+    return profile_photo_storage_directory() . DIRECTORY_SEPARATOR . $filename;
+}
+
+function profile_photo_mime_type($path)
+{
+    if (!is_string($path) || !is_file($path) || !function_exists('finfo_open')) {
+        return null;
+    }
+
+    $file_info = @finfo_open(FILEINFO_MIME_TYPE);
+    if (!$file_info) {
+        return null;
+    }
+
+    $mime = @finfo_file($file_info, $path);
+    finfo_close($file_info);
+
+    return in_array($mime, array('image/jpeg', 'image/png', 'image/webp'), true) ? $mime : null;
+}
+
+function profile_photo_upload($field = 'profile_photo')
+{
+    if (!isset($_FILES[$field]) || !is_array($_FILES[$field])) {
+        return null;
+    }
+
+    $file = $_FILES[$field];
+    $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($error === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    if ($error !== UPLOAD_ERR_OK) {
+        if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
+            throw new RuntimeException('Foto profil terlalu besar. Ukuran maksimalnya 2 MB.');
+        }
+
+        throw new RuntimeException('Foto profil belum dapat dibaca. Pilih file gambar lain.');
+    }
+
+    $temporary_path = (string) ($file['tmp_name'] ?? '');
+    $file_size = (int) ($file['size'] ?? 0);
+    if ($temporary_path === '' || !is_uploaded_file($temporary_path)) {
+        throw new RuntimeException('Upload foto profil tidak valid.');
+    }
+
+    if ($file_size <= 0 || $file_size > 2 * 1024 * 1024) {
+        throw new RuntimeException('Foto profil terlalu besar. Ukuran maksimalnya 2 MB.');
+    }
+
+    $mime = profile_photo_mime_type($temporary_path);
+    $extensions = array(
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+    );
+    if (!isset($extensions[$mime])) {
+        throw new RuntimeException('Format foto profil harus JPG, PNG, atau WebP.');
+    }
+
+    $image_size = @getimagesize($temporary_path);
+    if ($image_size === false || (int) ($image_size[0] ?? 0) <= 0 || (int) ($image_size[1] ?? 0) <= 0) {
+        throw new RuntimeException('File yang dipilih bukan gambar yang valid.');
+    }
+
+    if ((int) $image_size[0] > 4000 || (int) $image_size[1] > 4000) {
+        throw new RuntimeException('Resolusi foto profil terlalu besar. Gunakan gambar maksimal 4000 × 4000 piksel.');
+    }
+
+    $filename = bin2hex(random_bytes(24)) . '.' . $extensions[$mime];
+    $destination = profile_photo_file_path($filename);
+    if ($destination === null || !@move_uploaded_file($temporary_path, $destination)) {
+        throw new RuntimeException('Foto profil belum dapat disimpan. Periksa izin folder storage.');
+    }
+
+    return $filename;
+}
+
+function profile_photo_delete($filename)
+{
+    $path = profile_photo_file_path($filename);
+    if ($path !== null && is_file($path) && !@unlink($path)) {
+        error_log('[MedikaFlow] Foto profil lama tidak dapat dihapus: ' . $filename);
+    }
+}
+
+function profile_photo_url($user)
+{
+    if (!is_array($user)) {
+        return '';
+    }
+
+    $user_id = (int) ($user['id'] ?? 0);
+    $filename = profile_photo_filename($user['profile_photo'] ?? '');
+    if ($user_id <= 0 || $filename === null) {
+        return '';
+    }
+
+    $cache_key = substr(hash('sha256', $filename), 0, 12);
+    return base_url('profil/foto.php?id=' . $user_id . '&v=' . rawurlencode($cache_key));
+}
+
+function user_avatar_content($user)
+{
+    $user = is_array($user) ? $user : array();
+    $photo_url = profile_photo_url($user);
+
+    if ($photo_url !== '') {
+        return '<img class="avatar-photo" src="' . e($photo_url) . '" alt="" decoding="async">';
+    }
+
+    return e(initials($user['nama_lengkap'] ?? ''));
 }
 
 function doctor_schedule($doctor)
@@ -1424,23 +1578,44 @@ function clinic_skeleton_hero($context = array())
     $action_markup = trim((string) ($context['page_action_html'] ?? ''));
     $action_count = min(3, substr_count($action_markup, '<a '));
     $has_actions = $action_count > 0;
-    $hero_class = $has_actions ? '' : ' skeleton-page-hero-no-actions';
+    $is_dashboard = ($context['active_menu'] ?? '') === 'dashboard';
+    $hero_classes = array();
+    if (!$has_actions) {
+        $hero_classes[] = 'skeleton-page-hero-no-actions';
+    }
+    if ($is_dashboard) {
+        $hero_classes[] = 'skeleton-page-hero-dashboard';
+    }
+    $hero_class = empty($hero_classes) ? '' : ' ' . implode(' ', $hero_classes);
     $html = '<div class="skeleton-page-hero' . $hero_class . '">'
         . '<div class="skeleton-page-hero-copy">'
         . clinic_skeleton_block('skeleton-eyebrow')
         . clinic_skeleton_block('skeleton-title')
         . clinic_skeleton_block('skeleton-copy skeleton-copy-wide')
         . clinic_skeleton_block('skeleton-copy skeleton-copy-medium')
-        . '</div>'
-        . '<div class="skeleton-hero-visual">'
-        . clinic_skeleton_block('skeleton-hero-card')
-        . clinic_skeleton_block('skeleton-hero-badge')
         . '</div>';
+
+    if ($is_dashboard) {
+        $html .= '<div class="skeleton-dashboard-hero-media">'
+            . '<img class="skeleton-dashboard-hero-image" src="' . e(base_url('assets/images/medikaflow-dashboard-hero-v4.png?v=20260901-1')) . '" alt="" width="2172" height="724" decoding="async">'
+            . '<span class="dashboard-hero-blur dashboard-hero-blur-left"></span>'
+            . '<span class="dashboard-hero-blur dashboard-hero-blur-mid"></span>'
+            . '<span class="dashboard-hero-blur dashboard-hero-blur-near"></span>'
+            . '<span class="dashboard-hero-scrim"></span>'
+            . '<span class="skeleton-dashboard-hero-live loading-skeleton"><i></i><span></span></span>'
+            . '<span class="skeleton-dashboard-hero-shimmer loading-skeleton"></span>'
+            . '</div>';
+    } else {
+        $html .= '<div class="skeleton-hero-visual">'
+            . clinic_skeleton_block('skeleton-hero-card')
+            . clinic_skeleton_block('skeleton-hero-badge')
+            . '</div>';
+    }
 
     if ($has_actions) {
         $html .= '<div class="skeleton-hero-actions">';
         for ($index = 0; $index < $action_count; $index++) {
-            $html .= clinic_skeleton_block($index === 0 ? 'skeleton-action-button skeleton-action-button-primary' : 'skeleton-action-button');
+            $html .= clinic_skeleton_block($index === 0 ? 'skeleton-action-button skeleton-action-button-primary' : 'skeleton-action-button skeleton-action-button-secondary');
         }
         $html .= '</div>';
     }

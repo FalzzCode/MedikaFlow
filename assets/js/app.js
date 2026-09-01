@@ -20,6 +20,7 @@
     var printButtons = document.querySelectorAll('[data-print-page]');
     var passwordToggles = document.querySelectorAll('[data-password-toggle]');
     var roleSelects = document.querySelectorAll('[data-role-select]');
+    var profilePhotoInputs = document.querySelectorAll('[data-profile-photo-input]');
     var authLoginForm = document.querySelector('.auth-mode-login .auth-form');
     var authIdentifierInput = authLoginForm ? authLoginForm.querySelector('#identifier') : null;
     var authPasswordInput = authLoginForm ? authLoginForm.querySelector('#password') : null;
@@ -933,6 +934,68 @@
 
         select.addEventListener('change', syncDoctorField);
         syncDoctorField();
+    });
+
+    profilePhotoInputs.forEach(function (input) {
+        var form = input.closest('form');
+        var preview = form ? form.querySelector('[data-profile-photo-preview]') : null;
+        var removeCheckbox = form ? form.querySelector('[data-profile-photo-remove]') : null;
+        var maxFileSize = 2 * 1024 * 1024;
+        var allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
+        if (!preview) {
+            return;
+        }
+
+        input.addEventListener('change', function () {
+            input.setCustomValidity('');
+            var file = input.files && input.files[0];
+            if (!file) {
+                return;
+            }
+
+            if (allowedTypes.indexOf(file.type) === -1) {
+                input.value = '';
+                input.setCustomValidity('Format foto harus JPG, PNG, atau WebP.');
+                input.reportValidity();
+                return;
+            }
+
+            if (file.size <= 0 || file.size > maxFileSize) {
+                input.value = '';
+                input.setCustomValidity('Ukuran foto maksimal 2 MB.');
+                input.reportValidity();
+                return;
+            }
+
+            if (removeCheckbox) {
+                removeCheckbox.checked = false;
+                preview.classList.remove('is-removing');
+            }
+
+            var reader = new FileReader();
+            reader.addEventListener('load', function () {
+                var image = preview.querySelector('img.avatar-photo');
+                if (!image) {
+                    image = document.createElement('img');
+                    image.className = 'avatar-photo';
+                    image.alt = 'Pratinjau foto profil';
+                    image.decoding = 'async';
+                    preview.textContent = '';
+                    preview.appendChild(image);
+                }
+
+                image.src = reader.result;
+                preview.classList.add('has-photo');
+            });
+            reader.readAsDataURL(file);
+        });
+
+        if (removeCheckbox) {
+            removeCheckbox.addEventListener('change', function () {
+                preview.classList.toggle('is-removing', removeCheckbox.checked);
+            });
+        }
     });
 
     printButtons.forEach(function (button) {

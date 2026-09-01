@@ -12,7 +12,7 @@ $page_presets = array(
     'dashboard' => array('theme' => 'teal', 'eyebrow' => 'Ruang kendali klinik', 'hero_icon' => 'layout-dashboard', 'hero_tag' => 'Tinjauan harian', 'hero_note' => 'Data yang paling penting, lebih dekat.'),
     'kunjungan' => array('theme' => 'blue', 'eyebrow' => 'Alur layanan', 'hero_icon' => 'calendar-days', 'hero_tag' => 'Antrean terarah', 'hero_note' => 'Pendaftaran sampai pasien selesai.'),
     'pemeriksaan' => array('theme' => 'violet', 'eyebrow' => 'Catatan klinis', 'hero_icon' => 'stethoscope', 'hero_tag' => 'Konteks tetap utuh', 'hero_note' => 'Temuan dokter tercatat rapi.'),
-    'resep' => array('theme' => 'orange', 'eyebrow' => 'Layanan farmasi', 'hero_icon' => 'pill', 'hero_tag' => 'Stok lebih aman', 'hero_note' => 'Pengeluaran obat terkontrol.'),
+    'resep' => array('theme' => 'orange', 'eyebrow' => 'Layanan farmasi', 'hero_icon' => 'clipboard-list', 'hero_tag' => 'Stok lebih aman', 'hero_note' => 'Pengeluaran obat terkontrol.'),
     'pembayaran' => array('theme' => 'green', 'eyebrow' => 'Administrasi klinik', 'hero_icon' => 'wallet', 'hero_tag' => 'Tagihan transparan', 'hero_note' => 'Komponen biaya mudah ditinjau.'),
     'riwayat' => array('theme' => 'indigo', 'eyebrow' => 'Jejak layanan', 'hero_icon' => 'file-clock', 'hero_tag' => 'Riwayat terhubung', 'hero_note' => 'Perjalanan pasien dalam satu tempat.'),
     'pasien' => array('theme' => 'cyan', 'eyebrow' => 'Data pasien', 'hero_icon' => 'users-round', 'hero_tag' => 'Rekam medis tertata', 'hero_note' => 'Identitas dan kunjungan tetap sinkron.'),
@@ -38,7 +38,7 @@ $navigation = array(
     'Operasional' => array(
         array('key' => 'kunjungan', 'label' => 'Kunjungan', 'icon' => 'calendar-days', 'url' => 'kunjungan/index.php'),
         array('key' => 'pemeriksaan', 'label' => 'Pemeriksaan', 'icon' => 'stethoscope', 'url' => 'pemeriksaan/index.php'),
-        array('key' => 'resep', 'label' => 'Resep obat', 'icon' => 'pill', 'url' => 'resep/index.php'),
+        array('key' => 'resep', 'label' => 'Resep obat', 'icon' => 'clipboard-list', 'url' => 'resep/index.php'),
         array('key' => 'pembayaran', 'label' => 'Pembayaran', 'icon' => 'wallet', 'url' => 'pembayaran/index.php'),
         array('key' => 'riwayat', 'label' => 'Riwayat pasien', 'icon' => 'file-clock', 'url' => 'riwayat/index.php'),
     ),
@@ -76,7 +76,7 @@ $page_skeleton_html = render_page_skeleton($active_menu, current_route_key(), $p
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= e(base_url('assets/css/style.css?v=20260828-7')) ?>">
-    <link rel="stylesheet" href="<?= e(base_url('assets/css/clinic-theme.css?v=20260831-3')) ?>">
+    <link rel="stylesheet" href="<?= e(base_url('assets/css/clinic-theme.css?v=20260901-8')) ?>">
 </head>
 <body class="app-theme-<?= e($page_preset['theme']) ?> page-is-loading" data-page-key="<?= e($active_menu) ?>" data-page-route="<?= e(current_route_key()) ?>">
 <script>
@@ -176,7 +176,7 @@ $page_skeleton_html = render_page_skeleton($active_menu, current_route_key(), $p
                 <p>Setiap transaksi tercatat dan saling terhubung.</p>
             </div>
             <div class="sidebar-user">
-                <div class="avatar avatar-small"><?= e($active_profile_initials) ?></div>
+                <div class="avatar avatar-small"><?= user_avatar_content($active_user) ?></div>
                 <div class="sidebar-user-copy">
                     <strong><?= e($active_profile_name) ?></strong>
                     <span><?= e($active_profile_role) ?></span>
@@ -209,10 +209,10 @@ $page_skeleton_html = render_page_skeleton($active_menu, current_route_key(), $p
                     <span><?= e(format_date_long_id(date('Y-m-d'))) ?></span>
                 </div>
                 <div class="account-menu-shell">
-                    <button class="avatar avatar-top account-toggle" type="button" data-account-toggle="topbar-account-menu" aria-expanded="false" aria-controls="topbar-account-menu" aria-label="Buka menu akun"><?= e($active_profile_initials) ?></button>
+                    <button class="avatar avatar-top account-toggle" type="button" data-account-toggle="topbar-account-menu" aria-expanded="false" aria-controls="topbar-account-menu" aria-label="Buka menu akun"><?= user_avatar_content($active_user) ?></button>
                     <div class="account-menu account-menu-topbar" id="topbar-account-menu" data-account-menu hidden>
                         <div class="account-menu-head">
-                            <div class="avatar avatar-small"><?= e($active_profile_initials) ?></div>
+                            <div class="avatar avatar-small"><?= user_avatar_content($active_user) ?></div>
                             <div><strong><?= e($active_profile_name) ?></strong><span><?= e($active_profile_role) ?></span></div>
                         </div>
                         <div class="account-menu-shift">
@@ -241,7 +241,7 @@ $page_skeleton_html = render_page_skeleton($active_menu, current_route_key(), $p
                     <div class="page-hero-art <?= $active_menu === 'dashboard' ? 'dashboard-hero-art' : '' ?>" aria-hidden="true">
                         <?php if ($active_menu === 'dashboard'): ?>
                             <div class="dashboard-hero-media">
-                                <img src="<?= e(base_url('assets/images/medikaflow-dashboard-hero-v2.webp?v=20260831-2')) ?>" alt="" width="768" height="512" loading="eager" fetchpriority="high" decoding="async">
+                                <img src="<?= e(base_url('assets/images/medikaflow-dashboard-hero-v4.png?v=20260901-1')) ?>" alt="" width="2172" height="724" loading="eager" fetchpriority="high" decoding="async">
                                 <span class="dashboard-hero-blur dashboard-hero-blur-left"></span>
                                 <span class="dashboard-hero-blur dashboard-hero-blur-mid"></span>
                                 <span class="dashboard-hero-blur dashboard-hero-blur-near"></span>

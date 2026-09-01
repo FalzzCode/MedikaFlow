@@ -1,5 +1,5 @@
 <?= render_errors($errors) ?>
-<form method="post" action="<?= e($form_action) ?>" autocomplete="off">
+<form method="post" action="<?= e($form_action) ?>" autocomplete="off" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
 
     <div class="form-section">
@@ -21,6 +21,19 @@
     </div>
 
     <div class="form-section">
+        <div class="form-section-title">Foto profil</div>
+        <div class="account-photo-editor">
+            <div class="profile-photo-preview" data-profile-photo-preview><?= user_avatar_content($data) ?></div>
+            <div class="profile-photo-fields">
+                <label class="form-label" for="profile_photo">Pilih foto profil</label>
+                <input class="form-control profile-photo-input" id="profile_photo" name="profile_photo" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" data-profile-photo-input>
+                <span class="form-help">JPG, PNG, atau WebP · maksimal 2 MB. Foto profil hanya dapat dikelola Admin.</span>
+                <?php if (!empty($data['profile_photo'])): ?><label class="profile-photo-remove"><input type="checkbox" name="remove_profile_photo" value="1" data-profile-photo-remove <?= !empty($_POST['remove_profile_photo']) ? 'checked' : '' ?>><span>Hapus foto saat ini</span></label><?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
         <div class="form-section-title"><?= $password_required ? 'Password awal' : 'Ganti password' ?></div>
         <div class="form-grid">
             <div class="form-field"><label class="form-label" for="password">Password <?= $password_required ? '<span class="required">*</span>' : '<span class="form-optional">opsional</span>' ?></label><div class="password-field-shell"><input class="form-control" id="password" name="password" type="password" autocomplete="new-password" data-password-input <?= $password_required ? 'required' : '' ?>><button class="form-password-toggle" type="button" data-password-toggle aria-label="Tampilkan password" aria-pressed="false"><?= icon('eye') ?></button></div><span class="form-help">Minimal 8 karakter dan memuat huruf serta angka.</span></div>
@@ -31,4 +44,3 @@
     <div class="form-note"><?= icon('shield-check') ?><span>Password hanya disimpan sebagai hash. Nilai aslinya tidak pernah ditampilkan kembali oleh sistem.</span></div>
     <div class="form-actions"><a class="button button-secondary" href="<?= e(base_url('akun/index.php')) ?>">Batal</a><button class="button button-primary" type="submit"><?= icon('check') ?><span><?= e($submit_label) ?></span></button></div>
 </form>
-

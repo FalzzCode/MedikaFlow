@@ -4,7 +4,7 @@ require_once __DIR__ . '/../includes/functions.php';
 $page_title = 'Dashboard';
 $page_description = 'Ringkasan operasional klinik untuk membantu tim bekerja lebih tenang hari ini.';
 $active_menu = 'dashboard';
-$page_action_html = page_action('Daftarkan kunjungan', 'kunjungan/tambah.php', 'calendar-days') . page_action('Tambah pasien', 'pasien/tambah.php', 'user-plus', 'button button-secondary');
+$page_action_html = page_action('Daftarkan kunjungan', 'kunjungan/tambah.php', 'calendar-days') . page_action('Tambah pasien', 'pasien/tambah.php', 'user-plus', 'button button-secondary button-dashboard-patient');
 
 $total_patients = (int) db_value('SELECT COUNT(*) FROM patients WHERE archived_at IS NULL');
 $total_doctors = (int) db_value("SELECT COUNT(*) FROM doctors WHERE archived_at IS NULL AND status = 'Aktif'");
